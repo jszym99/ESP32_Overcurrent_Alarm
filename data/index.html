@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Power Monitor</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #f4f4f9; padding: 20px; }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: inline-block; }
+        h1 { font-size: 3rem; color: #007bff; margin: 10px 0; }
+        .alarm { color: #dc3545; font-weight: bold; }
+        input { padding: 10px; width: 80px; border: 1px solid #ddd; border-radius: 5px; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Live Current</h2>
+        <h1 id="curr">0.00 A</h1>
+        <p>Threshold: <span id="thresh">...</span> A</p>
+        <hr>
+        <input type="number" id="newThresh" step="0.1" placeholder="2.0" min="0">
+        <button onclick="setThreshold()">Update</button>
+    </div>
+
+    <script>
+        // Fetch data every 1 second
+        setInterval(function() {
+            fetch('/data').then(response => response.json()).then(data => {
+                document.getElementById('curr').innerText = data.current.toFixed(2) + " A";
+                document.getElementById('thresh').innerText = data.threshold.toFixed(1);
+                document.getElementById('newThresh').innerText = data.threshold.toFixed(1);
+                if(data.current > data.threshold) {
+                    document.getElementById('curr').style.color = "red";
+                } else {
+                    document.getElementById('curr').style.color = "#007bff";
+                }
+            });
+        }, 1000);
+
+        function setThreshold() {
+            const val = document.getElementById('newThresh').value;
+            fetch(`/set?val=${val}`).then(() => alert("Threshold Updated!"));
+        }
+    </script>
+</body>
+</html>
