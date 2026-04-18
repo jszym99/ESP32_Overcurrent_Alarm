@@ -11,16 +11,55 @@
 #define LED_PIN 2
 #define ADC_PIN 34
 #define BUZZER_PIN LED_PIN//25
-const float CALIBRATION_FACTOR = 2.5;//60.6;
+const float CALIBRATION_FACTOR = 0.25;//60.6;
 
 EnergyMonitor emon1;
 WebServer server(80);
 Preferences preferences;
 
+enum SCT013
+{
+	SCT013005, // 5 A
+	SCT013010, // 10 A
+	SCT013015, // 15 A
+	SCT013020, // 20 A 
+	SCT013025, // 25 A
+	SCT013030, // 30 A
+	SCT013050, // 50 A
+	SCT013060, // 60 A
+	SCT013000, // 100 A
+};
+
+const uint8_t SCT013MAP[] = {5, 10, 15, 20, 25, 30, 50, 60, 100};
+const char* SCT013NAME[] = {
+	"SCT-013-005", // 5 A
+	"SCT-013-010", // 10 A
+	"SCT-013-015", // 15 A
+	"SCT-013-020", // 20 A
+	"SCT-013-025", // 25 A
+	"SCT-013-030", // 30 A
+	"SCT-013-050", // 50 A
+	"SCT-013-060", // 60 A
+	"SCT-013-000", // 100 A
+};
+
 float currentRMS = 0;
 float currentThreshold = 2.0;
+float voltage = 230.0;
+SCT013 selectedSensor = SCT013010; // Default to 10A sensor
 
 // --- SERVER HANDLERS ---
+
+
+inline uint8_t getSensorMax(SCT013 sensor)
+{
+	return SCT013MAP[sensor];
+}
+inline const char* getSensorName(SCT013 sensor)
+{
+	return SCT013NAME[sensor];
+}
+
 
 void handleRoot()
 {
@@ -37,20 +76,75 @@ void handleRoot()
 
 void handleData()
 {
-	StaticJsonDocument<100> doc;
+	StaticJsonDocument<200> doc;
 	doc["current"] = currentRMS;
 	doc["threshold"] = currentThreshold;
+	doc["sensor"] = selectedSensor;
+	doc["sensorName"] = getSensorName(selectedSensor);
+	doc["max"] = getSensorMax(selectedSensor);
+	doc["voltage"] = voltage;
 	String json;
 	serializeJson(doc, json);
 	server.send(200, "application/json", json);
 }
 
-void handleSet()
+void handleSetThreshold()
 {
-	if (server.hasArg("val"))
+	if (server.hasArg("thresh"))
 	{
-		currentThreshold = server.arg("val").toFloat();
+		currentThreshold = server.arg("thresh").toFloat();
 		preferences.putFloat("threshold", currentThreshold);
+	}
+	server.send(200, "text/plain", "OK");
+}
+
+void handleGetSensors()
+{
+	StaticJsonDocument<500> doc;
+	JsonArray sensors = doc.createNestedArray("sensors");
+	
+	for (int i = 0; i < 9; i++)
+	{
+		JsonObject sensor = sensors.createNestedObject();
+		sensor["id"] = i;
+		sensor["name"] = getSensorName((SCT013)i);
+		sensor["max"] = getSensorMax((SCT013)i);
+	}
+	
+	String json;
+	serializeJson(doc, json);
+	server.send(200, "application/json", json);
+}
+
+void handleSetSensor()
+{
+	if (server.hasArg("id"))
+	{
+		int sensorId = server.arg("id").toInt();
+		if (sensorId >= 0 && sensorId < 9)
+		{
+			selectedSensor = (SCT013)sensorId;
+			preferences.putUChar("sensor", selectedSensor);
+			server.send(200, "text/plain", "OK");
+			emon1.current(ADC_PIN, getSensorMax(selectedSensor)*CALIBRATION_FACTOR);
+		}
+		else
+		{
+			server.send(400, "text/plain", "Invalid sensor ID");
+		}
+	}
+	else
+	{
+		server.send(400, "text/plain", "Missing sensor ID");
+	}
+}
+
+void handleSetVoltage()
+{
+	if (server.hasArg("voltage"))
+	{
+		voltage = server.arg("voltage").toFloat();
+		preferences.putFloat("voltage", voltage);
 	}
 	server.send(200, "text/plain", "OK");
 }
@@ -94,17 +188,23 @@ void setup()
 
 	preferences.begin("power-app", false);
 	currentThreshold = preferences.getFloat("threshold", 2.0);
+	selectedSensor = (SCT013)preferences.getUChar("sensor", SCT013010);
+	voltage = preferences.getFloat("voltage", 230.0);
 
-	emon1.current(ADC_PIN, CALIBRATION_FACTOR);
+	emon1.current(ADC_PIN, getSensorMax(selectedSensor)*CALIBRATION_FACTOR);
 
 	server.on("/", handleRoot);
 	server.on("/data", handleData);
-	server.on("/set", handleSet);
+	server.on("/setThresh", handleSetThreshold);
+	server.on("/sensors", handleGetSensors);
+	server.on("/setSensor", handleSetSensor);
+	server.on("/setVolt", handleSetVoltage);
 	server.begin();
 }
 
 void loop()
 {
+	static unsigned long prevMillis = millis();
 	server.handleClient(); // Handle web requests
 
 	// Measure current
@@ -117,7 +217,14 @@ void loop()
 	// Buzzer Alert
 	if (currentRMS > currentThreshold)
 	{
-		digitalWrite(BUZZER_PIN, HIGH);
+		// dacWrite(BUZZER_PIN, 127);
+		// analogWrite(BUZZER_PIN, 127);
+		// Blink/beep  alarm
+		if(prevMillis + 500 <= millis())
+		{
+			digitalWrite(BUZZER_PIN, !digitalRead(BUZZER_PIN));
+			prevMillis = millis();
+		}
 	}
 	else
 	{

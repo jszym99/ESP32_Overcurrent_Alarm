@@ -81,24 +81,23 @@
         }
 
         /* Threshold Marker Group */
-        #thresh-group {
+        #thresh-group,
+        #power-thresh-group {
             transform-box: view-box;
-            /* ADDED: Forces origin to align with SVG canvas */
             transform-origin: 100px 100px;
             transition: transform 0.5s ease;
         }
 
         /* Floating Text Label Style */
-        #thresh-label {
+        #thresh-label,
+        #power-thresh-label {
             fill: #dc3545;
             font-size: 11px;
             font-weight: bold;
             text-anchor: middle;
             dominant-baseline: middle;
             transform-box: view-box;
-            /* ADDED: Forces origin to align with SVG canvas */
             transform-origin: -20px 100px;
-            /* ADDED: Exact mathematical center of the text */
             transition: transform 0.5s ease;
         }
 
@@ -138,6 +137,14 @@
             text-align: center;
         }
 
+        select {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            text-align: center;
+            font-size: 1rem;
+        }
+
         button {
             padding: 10px 20px;
             background: #007bff;
@@ -157,6 +164,36 @@
 
 <body>
     <div class="card">
+        <h2>Live Power</h2>
+        <div class="gauge-wrapper">
+            <svg viewBox="0 0 200 100">
+                <path class="gauge-bg" d="M 10 100 A 90 90 0 0 1 190 100" />
+
+                <line x1="10" y1="100" x2="22" y2="100" class="gauge-mark" />
+                <line x1="10" y1="100" x2="22" y2="100" class="gauge-mark" transform="rotate(36 100 100)" />
+                <line x1="10" y1="100" x2="22" y2="100" class="gauge-mark" transform="rotate(72 100 100)" />
+                <line x1="10" y1="100" x2="22" y2="100" class="gauge-mark" transform="rotate(108 100 100)" />
+                <line x1="10" y1="100" x2="22" y2="100" class="gauge-mark" transform="rotate(144 100 100)" />
+                <line x1="10" y1="100" x2="22" y2="100" class="gauge-mark" transform="rotate(180 100 100)" />
+
+                <text x="35" y="98" class="gauge-label" id="power-label-0">0</text>
+                <text x="47" y="62" class="gauge-label" id="power-label-20">2</text>
+                <text x="80" y="38" class="gauge-label" id="power-label-40">4</text>
+                <text x="120" y="38" class="gauge-label" id="power-label-60">6</text>
+                <text x="153" y="62" class="gauge-label" id="power-label-80">8</text>
+                <text x="165" y="98" class="gauge-label" id="power-label-100">10</text>
+
+                <path id="power-progress-arc" class="gauge-progress" d="M 10 100 A 90 90 0 0 1 190 100" />
+
+                <g id="power-thresh-group">
+                    <line x1="-2" y1="100" x2="18" y2="100" stroke="#dc3545" stroke-width="3" stroke-linecap="round" />
+                    <text id="power-thresh-label" x="-20" y="100">0.0</text>
+                </g>
+            </svg>
+
+            <div class="readout" id="power-curr">0.0<span class="unit"> kW</span></div>
+        </div>
+
         <h2>Live Current</h2>
 
         <div class="gauge-wrapper">
@@ -168,13 +205,13 @@
                 <line x1="10" y1="100" x2="22" y2="100" class="gauge-mark" transform="rotate(72 100 100)" />
                 <line x1="10" y1="100" x2="22" y2="100" class="gauge-mark" transform="rotate(108 100 100)" />
                 <line x1="10" y1="100" x2="22" y2="100" class="gauge-mark" transform="rotate(144 100 100)" />
-                <line x1="10" y1="100" x2="22" y2="100" class="gauge-mark" transform="rotate(180 100 100)" /> <text
-                    x="35" y="98" class="gauge-label">0</text>
-                <text x="47" y="62" class="gauge-label">2</text>
-                <text x="80" y="38" class="gauge-label">4</text>
-                <text x="120" y="38" class="gauge-label">6</text>
-                <text x="153" y="62" class="gauge-label">8</text>
-                <text x="165" y="98" class="gauge-label">10</text>
+                <line x1="10" y1="100" x2="22" y2="100" class="gauge-mark" transform="rotate(180 100 100)" />
+                <text x="35" y="98" class="gauge-label" id="label-0">0</text>
+                <text x="47" y="62" class="gauge-label" id="label-20">2</text>
+                <text x="80" y="38" class="gauge-label" id="label-40">4</text>
+                <text x="120" y="38" class="gauge-label" id="label-60">6</text>
+                <text x="153" y="62" class="gauge-label" id="label-80">8</text>
+                <text x="165" y="98" class="gauge-label" id="label-100">10</text>
 
                 <path id="progress-arc" class="gauge-progress" d="M 10 100 A 90 90 0 0 1 190 100" />
 
@@ -187,64 +224,177 @@
             <div class="readout" id="curr">0.0<span class="unit"> A</span></div>
         </div>
 
-        <p>Threshold: <span id="thresh">...</span> A</p>
         <hr>
+        <p>Threshold: <span id="thresh">...</span> A</p>
         <input type="number" id="newThresh" step="0.1" min="0" max="99.9">
         <button onclick="setThreshold()">Update</button>
+
+        <!-- <hr> -->
+        <p>Sensor Type:</p>
+        <select id="sensorSelect" onchange="setSensor()">
+            <option value="">Loading sensors...</option>
+        </select>
+
+        <p>Voltage: <span id="voltage">...</span> V</p>
+        <input type="number" id="newVoltage" step="0.1" min="0">
+        <button onclick="setVoltage()">Update</button>
     </div>
 
     <script>
         // Setup Gauge Constants
-        const MAX_CURRENT = 10;
+        let maxCurrent = 10;
+        let currentVoltage = 230;
         const ARC_LENGTH = 282.74;
 
         const progressArc = document.getElementById('progress-arc');
         const currDisplay = document.getElementById('curr');
         const threshGroup = document.getElementById('thresh-group');
         const threshLabel = document.getElementById('thresh-label');
+        const sensorSelect = document.getElementById('sensorSelect');
+
+        const powerProgressArc = document.getElementById('power-progress-arc');
+        const powerDisplay = document.getElementById('power-curr');
+        const powerThreshGroup = document.getElementById('power-thresh-group');
+        const powerThreshLabel = document.getElementById('power-thresh-label');
+
+        // Load available sensors on page load
+        function loadSensors() {
+            fetch('/sensors').then(response => response.json()).then(data => {
+                sensorSelect.innerHTML = '';
+                data.sensors.forEach(sensor => {
+                    const option = document.createElement('option');
+                    option.value = sensor.id;
+                    option.textContent = sensor.name;
+                    sensorSelect.appendChild(option);
+                });
+            }).catch(err => console.error("Sensors fetch error:", err));
+        }
+
+        // Load sensors on page load
+        loadSensors();
+
+        // Function to dynamically calculate and update the gauge interval labels
+        function updateGaugeLabels() {
+            // Using Number() drops unnecessary trailing zeroes (e.g., 2.0 -> 2)
+            document.getElementById('label-0').textContent = 0;
+            document.getElementById('label-20').textContent = Number((maxCurrent * 0.2).toFixed(1));
+            document.getElementById('label-40').textContent = Number((maxCurrent * 0.4).toFixed(1));
+            document.getElementById('label-60').textContent = Number((maxCurrent * 0.6).toFixed(1));
+            document.getElementById('label-80').textContent = Number((maxCurrent * 0.8).toFixed(1));
+            document.getElementById('label-100').textContent = Number(maxCurrent.toFixed(1));
+
+            const MAX_POWER_KW = (maxCurrent * currentVoltage) / 1000;
+            document.getElementById('power-label-0').textContent = 0;
+            document.getElementById('power-label-20').textContent = Number((MAX_POWER_KW * 0.2).toFixed(1));
+            document.getElementById('power-label-40').textContent = Number((MAX_POWER_KW * 0.4).toFixed(1));
+            document.getElementById('power-label-60').textContent = Number((MAX_POWER_KW * 0.6).toFixed(1));
+            document.getElementById('power-label-80').textContent = Number((MAX_POWER_KW * 0.8).toFixed(1));
+            document.getElementById('power-label-100').textContent = Number(MAX_POWER_KW.toFixed(1));
+        }
+
+        // Initialize labels on load
+        updateGaugeLabels();
 
         setInterval(function () {
             fetch('/data').then(response => response.json()).then(data => {
+                let needsLabelUpdate = false;
+                if (data.sensor !== undefined && maxCurrent !== data.max) {
+                    maxCurrent = data.max;
+                    needsLabelUpdate = true;
+                }
+                if (data.voltage !== undefined && currentVoltage !== data.voltage) {
+                    currentVoltage = data.voltage;
+                    needsLabelUpdate = true;
+                }
+                if (needsLabelUpdate) updateGaugeLabels();
 
                 // 1. Update Text Displays
                 currDisplay.innerHTML = data.current.toFixed(1) + '<span class="unit"> A</span>';
                 document.getElementById('thresh').innerText = data.threshold.toFixed(1);
                 document.getElementById('newThresh').placeholder = data.threshold.toFixed(1);
+                document.getElementById('voltage').innerText = data.voltage.toFixed(1);
+                document.getElementById('newVoltage').placeholder = data.voltage.toFixed(1);
 
                 // Update the actual SVG label text
                 threshLabel.textContent = data.threshold.toFixed(1);
 
+                // Update sensor selector
+                if (data.sensor !== undefined) {
+                    sensorSelect.value = data.sensor;
+                    maxCurrent = data.max;
+                    updateGaugeLabels();
+                }
+
+                const currentPowerKw = (data.current * currentVoltage) / 1000;
+                const threshPowerKw = (data.threshold * currentVoltage) / 1000;
+                const MAX_POWER_KW = (maxCurrent * currentVoltage) / 1000;
+
+                powerDisplay.innerHTML = currentPowerKw.toFixed(1) + '<span class="unit"> kW</span>';
+                powerThreshLabel.textContent = threshPowerKw.toFixed(1);
+
                 // 2. Animate Gauge Arc
-                const clampedCurrent = Math.max(0, Math.min(data.current, MAX_CURRENT));
-                const currentPercent = clampedCurrent / MAX_CURRENT;
+                const clampedCurrent = Math.max(0, Math.min(data.current, maxCurrent));
+                const currentPercent = clampedCurrent / maxCurrent;
                 progressArc.style.strokeDashoffset = ARC_LENGTH - (currentPercent * ARC_LENGTH);
+
+                const clampedPower = Math.max(0, Math.min(currentPowerKw, MAX_POWER_KW));
+                const powerPercent = MAX_POWER_KW > 0 ? clampedPower / MAX_POWER_KW : 0;
+                powerProgressArc.style.strokeDashoffset = ARC_LENGTH - (powerPercent * ARC_LENGTH);
 
                 // 3. Move Threshold Marker & Keep Text Upright
                 // Threshold marker rotation math
-                const clampedThresh = Math.max(0, Math.min(data.threshold, MAX_CURRENT));
-                const threshAngle = (clampedThresh / MAX_CURRENT) * 180;
-
-                // CHANGED: Use pure CSS transforms instead of SVG setAttribute
+                const clampedThresh = Math.max(0, Math.min(data.threshold, maxCurrent));
+                const threshAngle = (clampedThresh / maxCurrent) * 180;
                 threshGroup.style.transform = `rotate(${threshAngle}deg)`;
                 threshLabel.style.transform = `rotate(${-threshAngle}deg)`;
+
+                const clampedThreshPower = Math.max(0, Math.min(threshPowerKw, MAX_POWER_KW));
+                const powerThreshAngle = MAX_POWER_KW > 0 ? (clampedThreshPower / MAX_POWER_KW) * 180 : 0;
+                powerThreshGroup.style.transform = `rotate(${powerThreshAngle}deg)`;
+                powerThreshLabel.style.transform = `rotate(${-powerThreshAngle}deg)`;
+
                 // 4. Match Filler & Readout Color to Alarm State
                 if (data.current > data.threshold) {
                     currDisplay.style.color = "#dc3545";
                     progressArc.style.stroke = "#dc3545";
+                    powerDisplay.style.color = "#dc3545";
+                    powerProgressArc.style.stroke = "#dc3545";
                 } else {
                     currDisplay.style.color = "#007bff";
                     progressArc.style.stroke = "#007bff";
+                    powerDisplay.style.color = "#007bff";
+                    powerProgressArc.style.stroke = "#007bff";
                 }
             }).catch(err => console.error("Data fetch error:", err));
         }, 1000);
 
         function setThreshold() {
-            const val = document.getElementById('newThresh').value;
-            if (!val) return;
-            if (val > 99.9) val = 99.9; // TODO: max threshold should be equal to max measurement
-            fetch(`/set?val=${val}`).then(() => {
+            const thresh = document.getElementById('newThresh').value;
+            if (!thresh) return;
+
+            // Limit threshold dynamically to current MAX_CURRENT
+            if (thresh > maxCurrent) thresh = maxCurrent;
+
+            fetch(`/setThresh?thresh=${thresh}`).then(() => {
                 // alert("Threshold Updated!");
                 document.getElementById('newThresh').value = '';
+            });
+        }
+
+        function setSensor() {
+            const sensorId = sensorSelect.value;
+            if (sensorId === '') return;
+            fetch(`/setSensor?id=${sensorId}`).then(() => {
+                console.log("Sensor updated to: " + sensorId);
+            }).catch(err => console.error("Sensor set error:", err));
+        }
+
+        function setVoltage() {
+            const voltage = document.getElementById('newVoltage').value;
+            if (!voltage) return;
+
+            fetch(`/setVolt?voltage=${voltage}`).then(() => {
+                document.getElementById('newVoltage').value = '';
             });
         }
     </script>
