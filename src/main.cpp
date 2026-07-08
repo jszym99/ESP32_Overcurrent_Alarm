@@ -10,7 +10,8 @@
 
 #define LED_PIN 2
 #define ADC_PIN 34
-#define BUZZER_PIN LED_PIN//25
+#define BUZZER_PIN 25
+#define PASSIVE_BUZZER
 const float CALIBRATION_FACTOR = 0.25;//60.6;
 
 EnergyMonitor emon1;
@@ -152,6 +153,7 @@ void handleSetVoltage()
 void setup()
 {
 	pinMode(BUZZER_PIN, OUTPUT);
+	pinMode(LED_PIN, OUTPUT);
 
 	// Initialize LittleFS
 	if (!LittleFS.begin(true))
@@ -200,6 +202,11 @@ void setup()
 	server.on("/setSensor", handleSetSensor);
 	server.on("/setVolt", handleSetVoltage);
 	server.begin();
+
+	#ifdef PASSIVE_BUZZER
+	ledcSetup(0, 4000, 8);
+	ledcAttachPin(BUZZER_PIN, 0);
+	#endif // PASSIVE_BUZZER
 }
 
 void loop()
@@ -222,12 +229,25 @@ void loop()
 		// Blink/beep  alarm
 		if(prevMillis + 500 <= millis())
 		{
+			#ifdef PASSIVE_BUZZER
+			ledcWriteTone(0, 2000 * !digitalRead(LED_PIN));
+			#else
 			digitalWrite(BUZZER_PIN, !digitalRead(BUZZER_PIN));
+			#endif // PASSIVE_BUZZER
+			// analogWrite(BUZZER_PIN, 127);
+			// ledcChangeFrequency(analogGetChannel(BUZZER_PIN), 4000, 127);
+			digitalWrite(LED_PIN, !digitalRead(LED_PIN));
 			prevMillis = millis();
 		}
 	}
 	else
 	{
+		#ifdef PASSIVE_BUZZER
+		ledcWriteTone(0, 0);
+		#else
 		digitalWrite(BUZZER_PIN, LOW);
+		#endif // PASSIVE_BUZZER
+		// analogWrite(BUZZER_PIN, 0);
+		digitalWrite(LED_PIN, LOW);
 	}
 }
