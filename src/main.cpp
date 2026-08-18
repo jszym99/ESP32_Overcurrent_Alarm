@@ -5,6 +5,7 @@
 #include <Preferences.h>
 #include "EmonLib.h"
 #include "config.h"
+#include <esp_task_wdt.h>
 
 // --- CONFIGURATION ---
 
@@ -207,10 +208,29 @@ void setup()
 	ledcSetup(0, 4000, 8);
 	ledcAttachPin(BUZZER_PIN, 0);
 	#endif // PASSIVE_BUZZER
+
+// Initialize Watchdog: 5 seconds timeout, true = panic/reset on timeout
+    esp_task_wdt_init(5, true); 
+    
+    // Subscribe the current loop task to the Watchdog
+    esp_task_wdt_add(NULL);
 }
 
 void loop()
 {
+	esp_task_wdt_reset();
+
+	// Reconnect if Wi-Fi drops
+	static unsigned long lastWifiCheck = 0;
+    if (WiFi.status() != WL_CONNECTED) 
+    {
+        if (millis() - lastWifiCheck >= 10000) 
+        { 
+            WiFi.reconnect(); // Attempt to reconnect
+            lastWifiCheck = millis();
+        }
+    }
+
 	static unsigned long prevMillis = millis();
 	server.handleClient(); // Handle web requests
 
@@ -227,7 +247,7 @@ void loop()
 		// dacWrite(BUZZER_PIN, 127);
 		// analogWrite(BUZZER_PIN, 127);
 		// Blink/beep  alarm
-		if(prevMillis + 500 <= millis())
+		if(millis() - prevMillis >= 500)
 		{
 			#ifdef PASSIVE_BUZZER
 			ledcWriteTone(0, 2000 * !digitalRead(LED_PIN));
@@ -250,4 +270,6 @@ void loop()
 		// analogWrite(BUZZER_PIN, 0);
 		digitalWrite(LED_PIN, LOW);
 	}
+
+	delay(10);
 }
