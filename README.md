@@ -2,7 +2,7 @@
 
 A standalone mains current monitoring device based on an ESP32 microcontroller. It was built as a simple weekend project to prevent tripping the main apartment breaker shared by multiple high-powered household appliances. The current is measured using a split-core current transformer (SCT-013).
 
-The web interface lets the user set the upper current limit for the alarm and monitor real-time current draw. Live power consumption is also shown but only as an approximation calculated as `current x voltage`. Voltage is set as a constant value and can be adjusted manually in the web interface (default is 230V).
+The web interface lets the user set the upper current limit for the alarm and monitor real-time current draw. Live power consumption is also shown but only as an approximation calculated as `current x voltage`. Voltage is set as a constant value and can be adjusted manually in the web interface (default is 230 V).
 
 ### Web interface
 
@@ -12,7 +12,7 @@ The web interface lets the user set the upper current limit for the alarm and mo
 
 - Live current (A) and estimated power (kW) measurement
 - Visual (LED) and audible (buzzer) alarm when current exceeds the set threshold
-- Adjustable alarm threshold and mains voltage (default 230V) via the web UI
+- Adjustable alarm threshold (default 2 A) and mains voltage (default 230 V) via the web UI
 - Selectable SCT-013 sensor rating: 5 A, 10 A, 15 A, 20 A, 25 A, 30 A, 50 A, 60 A, 100 A
 - Settings (threshold, sensor, voltage) saved to persistent memory
 - Wi-Fi setup via captive portal if the preset network can't be reached
@@ -23,8 +23,8 @@ The web interface lets the user set the upper current limit for the alarm and mo
 - ESP32 DOIT DevKit V1
 - SCT-013 split-core current transformer with built-in burden resistor
 - DC bias circuit:
-    - 2 x 10k resistors
-    - 10uF capacitor
+    - 2 x 10 kΩ resistors
+    - 10 µF capacitor
 - Buzzer with a driver:
     - Electromagnetic (recommended) or piezo buzzer
     - Flyback diode
@@ -91,6 +91,6 @@ To calibrate, measure a known load with a clamp meter (or use a resistive applia
 
 - When the alarm is on, the built-in LED flashes and the buzzer beeps in sync (500 ms on, 500 ms off)
 - By default the firmware drives a passive buzzer with a 2 kHz tone (`#define PASSIVE_BUZZER` in `src/main.cpp`). For an active buzzer (with a built-in oscillator), comment out this line and the pin is switched on and off instead
-- The wiring diagram assumes the device is powered via USB or VIN with a 5V supply
+- The wiring diagram assumes the device is powered via USB or VIN with a 5 V supply
 - Standard breakers trip within 1 h at `1.45 x rated current` and within seconds at around `2.5 x rated current`. The alarm is meant to warn about these short, high overloads (e.g. dishwasher, iron and microwave running at once). Set the limit above the breaker rating (e.g. 13–15 A for a B10) to avoid false alarms from short bursts like a coffee machine switching on
 - Because the limit is set above the breaker rating, the alarm will not trigger on a long but low overcurrent (e.g. 11–12 A on a B10), which can still trip the breaker after a longer time. A timer that sounds the alarm when the current stays above the rating for too long would cover this case, but it was not needed for the original use case of this device
